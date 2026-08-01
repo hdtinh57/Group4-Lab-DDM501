@@ -1,0 +1,18 @@
+groups:
+  - name: api_alerts
+    rules:
+      - alert: ServiceDown
+        expr: up{job="movie-rating-api"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: "Movie Rating API is down"}
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: "API error rate exceeds 5%"}
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "API p95 latency exceeds one second"}

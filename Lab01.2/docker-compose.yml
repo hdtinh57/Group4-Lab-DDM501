@@ -1,0 +1,120 @@
+
+services:
+  
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.9.2
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./mlflow-data:/mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://localhost:5000
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --serve-artifacts
+      --artifacts-destination /mlflow/mlruns
+      --host 0.0.0.0
+      --port 5000
+    restart: unless-stopped
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+  
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: ddm501-airflow:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./pipeline:/opt/airflow/pipeline
+      - ./logs:/opt/airflow/logs
+      - ./models:/opt/airflow/models
+      - ./artifacts:/opt/airflow/artifacts
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY:-oXKULiHdqmJ1XVNtUZbo_bLw99Z1oKrwP8HLKV7vaVY=}
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_SECRET_KEY:-ddm501-development-secret}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONPATH=/opt/airflow
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+  
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: ddm501-airflow:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./pipeline:/opt/airflow/pipeline
+      - ./logs:/opt/airflow/logs
+      - ./models:/opt/airflow/models
+      - ./artifacts:/opt/airflow/artifacts
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY:-oXKULiHdqmJ1XVNtUZbo_bLw99Z1oKrwP8HLKV7vaVY=}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONPATH=/opt/airflow
+    command: scheduler
+    restart: unless-stopped
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: ddm501-airflow:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./pipeline:/opt/airflow/pipeline
+      - ./models:/opt/airflow/models
+      - ./artifacts:/opt/airflow/artifacts
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY:-oXKULiHdqmJ1XVNtUZbo_bLw99Z1oKrwP8HLKV7vaVY=}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONPATH=/opt/airflow
+    command: >
+      bash -ec "airflow db migrate &&
+      (airflow users delete --username admin || true) &&
+      airflow users create --username admin --password admin
+      --firstname Admin --lastname User --role Admin
+      --email admin@example.com"
+volumes:
+  postgres_data:

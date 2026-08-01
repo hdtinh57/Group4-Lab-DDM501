@@ -1,0 +1,35 @@
+services:
+  api:
+    build: .
+    ports: ["8001:8000"]
+    environment: ["MODEL_VERSION=2.0.0"]
+    networks: [monitoring]
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus_data:/prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    depends_on: [api]
+    networks: [monitoring]
+  grafana:
+    image: grafana/grafana:10.2.2
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
+    networks: [monitoring]
+
+networks:
+  monitoring: {}
+volumes:
+  prometheus_data: {}
+  grafana_data: {}

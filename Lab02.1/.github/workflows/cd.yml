@@ -1,0 +1,12 @@
+name: Container validation
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t ddm501-lab3:ci Lab02.1
+      - run: docker run -d --name lab3 -p 8000:8000 ddm501-lab3:ci
+      - run: sleep 5 && curl --fail http://localhost:8000/health

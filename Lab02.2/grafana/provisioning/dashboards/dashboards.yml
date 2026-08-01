@@ -1,0 +1,6 @@
+apiVersion: 1
+providers:
+  - name: DDM501
+    folder: DDM501 Monitoring
+    type: file
+    options: {path: /var/lib/grafana/dashboards}

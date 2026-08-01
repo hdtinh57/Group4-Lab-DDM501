@@ -1,0 +1,10 @@
+{
+  "uid": "ml-metrics", "title": "ML Metrics Dashboard", "schemaVersion": 38, "version": 1, "refresh": "10s",
+  "panels": [
+    {"id": 1, "title": "Model status", "type": "stat", "gridPos": {"h": 6,"w": 6,"x": 0,"y": 0}, "targets": [{"expr": "ml_model_loaded"}]},
+    {"id": 2, "title": "Prediction rate", "type": "timeseries", "gridPos": {"h": 6,"w": 9,"x": 6,"y": 0}, "targets": [{"expr": "sum(rate(ml_predictions_total[5m]))"}]},
+    {"id": 3, "title": "Prediction p95 latency", "type": "timeseries", "gridPos": {"h": 6,"w": 9,"x": 15,"y": 0}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(ml_prediction_duration_seconds_bucket[5m])))"}]},
+    {"id": 4, "title": "Prediction distribution", "type": "timeseries", "gridPos": {"h": 8,"w": 12,"x": 0,"y": 6}, "targets": [{"expr": "sum by (le) (rate(ml_prediction_value_bucket[5m]))", "legendFormat": "<= {{le}}"}]},
+    {"id": 5, "title": "Prediction errors", "type": "timeseries", "gridPos": {"h": 8,"w": 12,"x": 12,"y": 6}, "targets": [{"expr": "sum(rate(ml_prediction_errors_total[5m])) or vector(0)", "legendFormat": "errors"}]}
+  ]
+}
